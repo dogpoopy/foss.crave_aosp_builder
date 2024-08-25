@@ -21,7 +21,7 @@ on:
        DEVICE_CODENAME:
         description: "Device codename:"
         required: true
-        default: "apollo"
+        default: "lancelot"
        PROJECT:
         description: "What's the ROM? (only for Telegram notification)"
        BUILD_SCRIPT:
