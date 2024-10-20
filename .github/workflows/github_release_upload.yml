@@ -59,7 +59,7 @@ jobs:
 
   upload:
     timeout-minutes: 960
-    name: Prepare compiled objects in devspace
+    name: Upload to GitHub releases
     runs-on: self-hosted
 
     steps:

@@ -198,7 +198,6 @@ jobs:
             'out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/${{ github.event.inputs.DEVICE_CODENAME }}.json' \
             'out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/boot.img' \
             'out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/${{ github.event.inputs.DEVICE_CODENAME }}_changelog.txt'
-        
 
             mkdir -p compiled
             
@@ -212,6 +211,9 @@ jobs:
             mv -f ${{ github.event.inputs.DEVICE_CODENAME }}* "${{ env.BUILD_DIR }}/compiled/" 2>/dev/null || true
             
             rm -rf out
+
+            echo "FILE PATH: ${{ env.BUILD_DIR }}/compiled"
+            ls "${{ env.BUILD_DIR }}/compiled"
 
             echo "ZIP_FILE=$file_name" >> $GITHUB_ENV
             echo "RELEASE_DATE=$(date +'%B %-d, %Y %H:%M')" >> $GITHUB_ENV
@@ -234,17 +236,18 @@ jobs:
 
         gh auth login --with-token <<< ${{ secrets.GITHUB_TOKEN }}
 
-        if [[ -f "compiled/${{ env.ZIP_FILE }}" ]]; then
-           file_size=$(stat -c%s "${{ env.ZIP_FILE }}")
+        if [[ -f "${{ env.BUILD_DIR }}/compiled/${{ env.ZIP_FILE }}" ]]; then
+           file_size=$(stat -c%s "${{ env.BUILD_DIR }}/compiled/${{ env.ZIP_FILE }}")
            if [[ $file_size -le 2147483648 ]]; then
               gh release create ${{ github.run_id }} --repo ${{ github.repository }} --title ${{ env.RELEASENAME }} --notes "Released on ${{ env.RELEASE_DATE }}"
-              gh release upload ${{ github.run_id }} --repo ${{ github.repository }} compiled/*
+              gh release upload ${{ github.run_id }} --repo ${{ github.repository }} ${{ env.BUILD_DIR }}/compiled/*
            else
               echo -e ${RED} "#######################################################################"
               echo -e ${RED} "##          ROM ZIP FILE IS TOO LARGE FOR GITHUB RELEASE!!           ##"
               echo -e ${RED} "##         GO TO YOUR DEVSPACE AND UPLOAD IT SOMEWHERE ELSE          ##"
               echo -e ${RED} "#######################################################################${NC}"
               echo "FILE PATH: ${{ env.BUILD_DIR }}/compiled/${{ env.ZIP_FILE }}"
+              exit 1
            fi
         fi
 
