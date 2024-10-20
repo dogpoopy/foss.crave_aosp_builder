@@ -74,7 +74,7 @@ jobs:
       run: |
         cd ${{ env.BUILD_DIR }}
 
-            find "${{ env.BUILD_DIR }}/compiled/" -name '*.zip' | sed 's|.*/||'
+            file_name=$(find "${{ env.BUILD_DIR }}/compiled/" -name '*.zip' | sed 's|.*/||')
             release_title=$(basename "$file_name" .zip)
 
             echo "ZIP_FILE=$file_name" >> $GITHUB_ENV

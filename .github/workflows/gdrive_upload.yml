@@ -79,7 +79,7 @@ jobs:
       run: |
         cd ${{ env.BUILD_DIR }}
 
-        find "${{ env.BUILD_DIR }}/compiled/" -name '*.zip' | sed 's|.*/||'
+        file_name=$(find "${{ env.BUILD_DIR }}/compiled/" -name '*.zip' | sed 's|.*/||')
         echo $file_name
         bash_upload=$(curl -s -F "file=@${{ env.BUILD_DIR }}/compiled/$file_name" bashupload.com)
         download_link=$(echo "$bash_upload" | grep -o 'wget .*' | sed 's/^wget //')
