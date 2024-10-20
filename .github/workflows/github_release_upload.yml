@@ -1,0 +1,112 @@
+#
+# Copyright (C) 2024 Antonino Scordino
+# Copyright (C) 2024 Souhrud Reddy
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+name: GitHub Release
+on:
+  workflow_dispatch:
+
+jobs:
+  Start-Runner:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y tmux
+
+      # Download and configure 'crave'.
+    - name: Configure the 'crave' environment
+      run: |
+        mkdir ${HOME}/bin/
+        curl -s https://raw.githubusercontent.com/accupara/crave/master/get_crave.sh | bash -s --
+        mv ${PWD}/crave ${HOME}/bin/
+        sudo ln -sf /home/${USER}/bin/crave /usr/bin/crave
+        envsubst < ${PWD}/crave.conf.sample >> ${PWD}/crave.conf
+        rm -rf ${PWD}/crave.conf.sample
+
+      env:
+        CRAVE_USERNAME: ${{  secrets.CRAVE_USERNAME  }}
+        CRAVE_TOKEN: ${{  secrets.CRAVE_TOKEN  }}
+
+    - name: Run crave devspace
+      run: |
+        crave devspace -- "
+        echo "Looking for runner..."
+          # Look for whether there's a runner folder set up
+        if [ -f actions-runner/run.sh ] ; then
+          echo -e '\e[32mRunner found! Restarting it...\e[0m'
+        else
+          echo -e '\e[31mError! Runner not found!\e[0m'
+          exit 1
+        fi
+
+        if tmux has-session -t ghactions; then 
+          echo -e '\e[32mRunner is already Running\e[0m'
+        else 
+          tmux kill-session -t ghactions;
+          tmux new-session -d -s ghactions 
+          tmux send-keys -t ghactions './actions-runner/run.sh' Enter 
+          echo -e '\e[32mRunner Started\e[0m'
+        fi "
+
+  upload:
+    timeout-minutes: 960
+    name: Prepare compiled objects in devspace
+    runs-on: self-hosted
+
+    steps:
+
+    - name: Build dir
+      run: |
+        build_dir=$(crave clone list --json | jq -r '.clones[]."Cloned At"')
+        echo "BUILD_DIR=$build_dir" >> $GITHUB_ENV
+
+    - name: Preparing ROM zip
+      continue-on-error: false
+      run: |
+        cd ${{ env.BUILD_DIR }}
+
+            find "${{ env.BUILD_DIR }}/compiled/" -name '*.zip' | sed 's|.*/||'
+            release_title=$(basename "$file_name" .zip)
+
+            echo "ZIP_FILE=$file_name" >> $GITHUB_ENV
+            echo "RELEASE_DATE=$(date +'%B %-d, %Y %H:%M')" >> $GITHUB_ENV
+            echo "RELEASENAME=$release_title" >> $GITHUB_ENV
+
+    - name: Upload to GitHub releases
+      run: |
+        cd ${{ env.BUILD_DIR }}
+
+        NC='\033[0m'
+        RED='\033[0;31m'
+
+        if ! command -v gh &> /dev/null; then
+           echo "gh could not be found. Installing gh..."
+           curl -sS https://webi.sh/gh | sh
+           source ~/.config/envman/PATH.env
+           echo "gh installed."
+        fi
+
+        gh auth login --with-token <<< ${{ secrets.GITHUB_TOKEN }}
+
+        if [[ -f "${{ env.BUILD_DIR }}/compiled/${{ env.ZIP_FILE }}" ]]; then
+           file_size=$(stat -c%s "${{ env.ZIP_FILE }}")
+           if [[ $file_size -le 2147483648 ]]; then
+              gh release create ${{ github.run_id }} --repo ${{ github.repository }} --title ${{ env.RELEASENAME }} --notes "Released on ${{ env.RELEASE_DATE }}"
+              gh release upload ${{ github.run_id }} --repo ${{ github.repository }} ${{ env.BUILD_DIR }}/compiled/*
+           else
+              echo -e ${RED} "#######################################################################"
+              echo -e ${RED} "##          ROM ZIP FILE IS TOO LARGE FOR GITHUB RELEASE!!           ##"
+              echo -e ${RED} "##         GO TO YOUR DEVSPACE AND UPLOAD IT SOMEWHERE ELSE          ##"
+              echo -e ${RED} "#######################################################################${NC}"
+              echo "FILE PATH: ${{ env.BUILD_DIR }}/compiled/${{ env.ZIP_FILE }}"
+           fi
+        fi

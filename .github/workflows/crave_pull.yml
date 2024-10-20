@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-name: Manual GitHub release
+name: Crave pull in devspace
 on:
   workflow_dispatch:
     inputs:
@@ -62,9 +62,9 @@ jobs:
           echo -e '\e[32mRunner Started\e[0m'
         fi "
 
-  upload:
+  pull:
     timeout-minutes: 960
-    name: Release compiled objects
+    name: Crave-pull objects to devspace
     runs-on: self-hosted
 
     steps:
@@ -74,18 +74,19 @@ jobs:
         build_dir=$(crave clone list --json | jq -r '.clones[]."Cloned At"')
         echo "BUILD_DIR=$build_dir" >> $GITHUB_ENV
 
-    - name: Preparing compiled objects
+    - name: Running "crave pull"
       continue-on-error: false
       run: |
         cd ${{ env.BUILD_DIR }}
 
             rm -f *.zip
-            rm -f *sum
+            rm -f .*sum
             rm -rf out
+            rm -rf compiled
 
             crave pull 'out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/*.zip' \
             'out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/recovery.img' \
-            'out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/*sum' \
+            'out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/.*sum' \
             'out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/${{ github.event.inputs.DEVICE_CODENAME }}.json' \
             'out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/boot.img' \
             'out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/${{ github.event.inputs.DEVICE_CODENAME }}_changelog.txt'
@@ -95,40 +96,23 @@ jobs:
             rm -f lineage*ota.zip
             rm -f aosp*ota.zip
             rm -f statix*ota.zip
-        
+            
+            mkdir -p compiled
+            
             file_name=$(find . -maxdepth 1 -name '*.zip' | sed 's|^\./||')
             release_title=$(basename "$file_name" .zip)
+
+            mv -f "$file_name" "${{ env.BUILD_DIR }}/compiled/" || true
+            mv -f .*sum "${{ env.BUILD_DIR }}/compiled/" 2>/dev/null || true
+            mv -f "out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/recovery.img" "${{ env.BUILD_DIR }}/compiled/" || true
+            mv -f "out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/boot.img" "${{ env.BUILD_DIR }}/compiled/" || true
+            mv -f ${{ github.event.inputs.DEVICE_CODENAME }}* "${{ env.BUILD_DIR }}/compiled/" 2>/dev/null || true
+            
+            rm -rf out
 
             echo "ZIP_FILE=$file_name" >> $GITHUB_ENV
             echo "RELEASE_DATE=$(date +'%B %-d, %Y %H:%M')" >> $GITHUB_ENV
             echo "RELEASENAME=$release_title" >> $GITHUB_ENV
-
-    - name: Upload to GitHub releases
-      run: |
-        cd ${{ env.BUILD_DIR }}
-
-        NC='\033[0m'
-        RED='\033[0;31m'
-
-        if ! command -v gh &> /dev/null; then
-           echo "gh could not be found. Installing gh..."
-           curl -sS https://webi.sh/gh | sh
-           source ~/.config/envman/PATH.env
-           echo "gh installed."
-        fi
-
-        gh auth login --with-token <<< ${{ secrets.GITHUB_TOKEN }}
-
-        if [[ -f "${{ env.ZIP_FILE }}" ]]; then
-           file_size=$(stat -c%s "${{ env.ZIP_FILE }}")
-           if [[ $file_size -le 2147483648 ]]; then
-              gh release create ${{ github.run_id }} --repo ${{ github.repository }} --title ${{ env.RELEASENAME }} --notes "Released on ${{ env.RELEASE_DATE }}"
-              gh release upload ${{ github.run_id }} --repo ${{ github.repository }} ${{ env.ZIP_FILE }} *sum out/target/product/${{ github.event.inputs.DEVICE_CODENAME }}/*
-           else
-              echo -e ${RED} "#######################################################################"
-              echo -e ${RED} "##          ROM ZIP FILE IS TOO LARGE FOR GITHUB RELEASE!!           ##"
-              echo -e ${RED} "##         GO TO YOUR DEVSPACE AND UPLOAD IT SOMEWHERE ELSE          ##"
-              echo -e ${RED} "#######################################################################${NC}"
-              echo "FILE PATH: ${{ env.BUILD_DIR }}/${{ env.ZIP_FILE }}"
-           fi
-        fi
+            
+            echo "FILE PATH: ${{ env.BUILD_DIR }}/compiled"
+            ls "${{ env.BUILD_DIR }}/compiled"
