@@ -104,10 +104,10 @@ jobs:
 
         if [[ -f "${{ env.ZIP_FILE }}" ]]; then
            file_size=$(stat -c%s "${{ env.ZIP_FILE }}")
-           if [[ $file_size -le 2147483648 ]]; then
-              echo -e '\e[31m${{ env.ZIP_FILE }} is too large for GitHub release!\e[0m'
+           if [[ $file_size -gt 2147483648 ]]; then
+              echo -e '\e[31m${{ env.ZIP_FILE }} is too large for GitHub release so it will be skipped!\e[0m'
               echo -e '\e[31mGo to your devspace and upload it somewhere else!\e[0m'
+           fi
               gh release upload ${{ github.run_id }} --repo ${{ github.repository }} ${{ env.BUILD_DIR }}/out/*
               gh release create ${{ github.run_id }} --repo ${{ github.repository }} --title ${{ env.RELEASENAME }} --notes "Released on ${{ env.RELEASE_DATE }}"
-           fi
         fi
