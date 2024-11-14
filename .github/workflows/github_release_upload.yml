@@ -107,7 +107,13 @@ jobs:
            if [[ $file_size -gt 2147483648 ]]; then
               echo -e '\e[31m${{ env.ZIP_FILE }} is too large for GitHub release so it will be skipped!\e[0m'
               echo -e '\e[31mGo to your devspace and upload it somewhere else!\e[0m'
+              skip_zip=true
            fi
-              gh release create ${{ github.run_id }} --repo ${{ github.repository }} --title ${{ env.RELEASENAME }} --notes "Released on ${{ env.RELEASE_DATE }}"
+           gh release create ${{ github.run_id }} --repo ${{ github.repository }} --title ${{ env.RELEASENAME }} --notes "Released on ${{ env.RELEASE_DATE }}"
+           if [[ "$skip_zip" != true ]]; then
               gh release upload ${{ github.run_id }} --repo ${{ github.repository }} ${{ env.BUILD_DIR }}/out/*
+           else
+              gh release upload ${{ github.run_id }} --repo ${{ github.repository }} $(find ${{ env.BUILD_DIR }}/out/ -type f ! -name '*.zip')
+           fi
         fi
+
