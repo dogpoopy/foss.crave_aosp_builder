@@ -1,4 +1,4 @@
-name: Start Runner
+name: Runner call (not to be triggered manually)
 on:
   workflow_call:
 
