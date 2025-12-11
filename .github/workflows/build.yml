@@ -113,8 +113,12 @@ jobs:
         
         echo -e '\e[32mYour build is now on queue, check it on foss.crave.io\e[0m'
         [[ "${{ github.event.inputs.BUILD_CLEAN }}" == "yes" ]] && CLEAN_FLAG="--clean" || CLEAN_FLAG=""
-        crave run $CLEAN_FLAG --no-patch -- "rm -f out/target/product/${{ env.DEVICE_CODENAME }}/*.zip out/target/product/${{ env.DEVICE_CODENAME }}/*sum ; \
-                                             curl -s ${{ github.event.inputs.BUILD_SCRIPT }} | bash"
+
+        crave run $CLEAN_FLAG --no-patch -- "
+          rm -f out/target/product/${{ env.DEVICE_CODENAME }}/*.zip out/target/product/${{ env.DEVICE_CODENAME }}/*sum
+          rm -rf .repo/local_manifests
+          curl -s ${{ github.event.inputs.BUILD_SCRIPT }} | bash
+        "
 
     - name: Error Log
       continue-on-error: true
