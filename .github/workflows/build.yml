@@ -134,6 +134,7 @@ jobs:
         [[ "${{ github.event.inputs.BUILD_CLEAN }}" == "yes" ]] && CLEAN_FLAG="--clean" || CLEAN_FLAG=""
 
         crave run $CLEAN_FLAG --no-patch -- "
+          [[ -z '${{ github.event.inputs.KEYS_TARGET_PATH }}' ]] && rm -f keys.tar.gz
           if [ -f keys.tar.gz ] && [ -n '${{ github.event.inputs.KEYS_TARGET_PATH }}' ]; then
               mkdir -p '${{ github.event.inputs.KEYS_TARGET_PATH }}'
               tar -xzpf keys.tar.gz -C '${{ github.event.inputs.KEYS_TARGET_PATH }}'
