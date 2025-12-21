@@ -109,7 +109,7 @@ jobs:
             echo "✅ keys.tar.gz already exists in devspace, skipping!"
         else
             echo "Creating keys.tar.gz..."
-            curl -s "${{ secrets.KEYS_BASE64 }}" | base64 -d > keys.tar.gz
+            curl -sL "${{ secrets.KEYS_BASE64 }}" | base64 -d -i > keys.tar.gz
             echo "✅ Signing keys deployed to devspace"
         fi
         
@@ -141,7 +141,7 @@ jobs:
           fi
           rm -f out/target/product/${{ env.DEVICE_CODENAME }}/*.zip out/target/product/${{ env.DEVICE_CODENAME }}/*sum
           rm -rf .repo/local_manifests
-          curl -s ${{ github.event.inputs.BUILD_SCRIPT }} | bash
+          curl -sL ${{ github.event.inputs.BUILD_SCRIPT }} | bash
         "
 
     - name: Error Log
